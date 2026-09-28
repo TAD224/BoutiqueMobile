@@ -21,3 +21,4 @@ bin/
 gen/
 out/
 release/
+.idea/
