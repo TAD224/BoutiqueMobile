@@ -21,3 +21,8 @@ bin/
 gen/
 out/
 release/
+
+# Android Studio et compilation
+.idea/
+build/
+*.iml
