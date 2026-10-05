@@ -31,4 +31,35 @@ interface VenteDao {
     // Dette d'un client = somme des (total - montantPaye) sur toutes ses ventes
     @Query("SELECT COALESCE(SUM(total - montantPaye), 0) FROM ventes WHERE clientId = :clientId")
     fun getSoldeDuParVentes(clientId: Long): Flow<Long>
+
+    // Bénéfice = somme de (prixUnitaire - prixAchat) * quantité sur les ventes de la période.
+    // Note : prixAchat est celui du produit au moment du calcul (pas d'historique du prix d'achat).
+    @Query(
+        """
+        SELECT COALESCE(SUM((l.prixUnitaire - p.prixAchat) * l.quantite), 0)
+        FROM lignes_vente l
+        INNER JOIN ventes v ON v.id = l.venteId
+        INNER JOIN produits p ON p.id = l.produitId
+        WHERE v.date BETWEEN :debut AND :fin
+        """
+    )
+    fun getBeneficeEntre(debut: Long, fin: Long): Flow<Long>
+
+    @Query(
+        """
+        SELECT p.nom AS nom, SUM(l.quantite) AS quantiteVendue
+        FROM lignes_vente l
+        INNER JOIN produits p ON p.id = l.produitId
+        GROUP BY p.id
+        ORDER BY quantiteVendue DESC
+        LIMIT :limite
+        """
+    )
+    fun getProduitsLesPlusVendus(limite: Int): Flow<List<ProduitVendu>>
 }
+
+/** Résultat de la requête "produits les plus vendus" (pas une entité Room). */
+data class ProduitVendu(
+    val nom: String,
+    val quantiteVendue: Int
+)
