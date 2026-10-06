@@ -4,43 +4,33 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-
-
-data class Produit(val id: Long, val nom: String, val prix: Long, val stock: Int)
-
-data class ProduitsUiState(
-    val produits: List<Produit> = emptyList(),
-    val produitsStockBas: List<Produit> = emptyList(),
-    val recherche: String = "",
-    val chargement: Boolean = false,
-    val erreur: String? = null,
-    val produitEnregistre: Boolean = false
-)
+import com.orangedigitalcenter.boutiquemobile.data.local.entity.Produit
+import com.orangedigitalcenter.boutiquemobile.ui.components.*
+import com.orangedigitalcenter.boutiquemobile.ui.state.ProduitsUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EcranProduitsStock(
     state: ProduitsUiState,
     onRechercheChange: (String) -> Unit,
-    onEnregistrerProduit: (id: Long?, nom: String, prix: Long, stock: Int) -> Unit,
-    onResetEnregistrement: () -> Unit, // Pour réinitialiser le booléen après fermeture
+    onEnregistrerProduit: (id: Long, nom: String, prixAchatTxt: String, prixVenteTxt: String, stockTxt: String, seuilTxt: String) -> Unit,
+    onResetEnregistrement: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showDialog by remember { mutableStateOf(false) }
     var produitEdition by remember { mutableStateOf<Produit?>(null) }
 
-    // Écoute le changement d'état du ViewModel pour fermer le dialogue
     LaunchedEffect(state.produitEnregistre) {
         if (state.produitEnregistre) {
             showDialog = false
@@ -50,57 +40,53 @@ fun EcranProduitsStock(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Gestion des Produits") },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+            CenterAlignedTopAppBar(
+                title = { Text("Produits", style = MaterialTheme.typography.titleLarge) },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = {
-                produitEdition = null
-                showDialog = true
-            }) {
+            FloatingActionButton(onClick = { produitEdition = null; showDialog = true }, shape = CircleShape) {
                 Icon(Icons.Default.Add, contentDescription = "Nouveau produit")
             }
         },
+        containerColor = MaterialTheme.colorScheme.background,
         modifier = modifier
     ) { paddingValues ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(paddingValues).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.fillMaxSize().padding(paddingValues).padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Ajout du champ de recherche mentionné dans le contrat
             OutlinedTextField(
                 value = state.recherche,
                 onValueChange = onRechercheChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Rechercher un produit...") },
+                placeholder = { Text("Rechercher un produit...") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                shape = RoundedCornerShape(14.dp),
                 singleLine = true
             )
-
             if (state.chargement) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+            } else if (state.produits.isEmpty()) {
+                EtatVide("Aucune donnée pour le moment", Icons.Filled.Inventory2)
             } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(state.produits) { produit ->
-                        ProduitItem(
-                            produit = produit,
-                            onModifierClick = {
-                                produitEdition = it
-                                showDialog = true
-                            }
-                        )
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 90.dp)) {
+                    items(state.produits, key = { it.id }) { produit ->
+                        ProduitItem(produit = produit, onModifierClick = { produitEdition = it; showDialog = true })
                     }
                 }
             }
+            state.erreur?.let {
+                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+            }
         }
-
         if (showDialog) {
             ProduitFormDialog(
                 produit = produitEdition,
                 onDismiss = { showDialog = false },
-                onConfirm = { nom, prix, stock ->
-                    onEnregistrerProduit(produitEdition?.id, nom, prix, stock)
+                onConfirm = { nom, prixAchatTxt, prixVenteTxt, stockTxt, seuilTxt ->
+                    onEnregistrerProduit(produitEdition?.id ?: 0L, nom, prixAchatTxt, prixVenteTxt, stockTxt, seuilTxt)
                 }
             )
         }
@@ -109,27 +95,36 @@ fun EcranProduitsStock(
 
 @Composable
 fun ProduitItem(produit: Produit, onModifierClick: (Produit) -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth().clickable { onModifierClick(produit) },
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    val stockBas = produit.stock <= produit.seuilAlerte
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp,
+        modifier = Modifier.fillMaxWidth().clickable { onModifierClick(produit) }
     ) {
         Row(
-            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            modifier = Modifier.padding(14.dp).fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = produit.nom, style = MaterialTheme.typography.titleMedium)
-                Text(text = "Prix : ${produit.prix} GNF", style = MaterialTheme.typography.bodyMedium)
-                val stockColor = if (produit.stock <= 5) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant
-                Text(
-                    text = "En stock : ${produit.stock}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = stockColor
-                )
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                Avatar(initiale = produit.nom.take(1))
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text(produit.nom, style = MaterialTheme.typography.titleMedium)
+                    Text(formatGnf(produit.prixVente), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
-            IconButton(onClick = { onModifierClick(produit) }) {
-                Icon(Icons.Default.Edit, contentDescription = "Modifier", tint = MaterialTheme.colorScheme.primary)
+            Column(horizontalAlignment = Alignment.End) {
+                Pill(
+                    texte = if (stockBas) "Stock bas · ${produit.stock}" else "Stock ${produit.stock}",
+                    couleurFond = if (stockBas) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant,
+                    couleurTexte = if (stockBas) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(6.dp))
+                IconButton(onClick = { onModifierClick(produit) }, modifier = Modifier.size(28.dp)) {
+                    Icon(Icons.Default.Edit, contentDescription = "Modifier", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                }
             }
         }
     }
@@ -139,52 +134,32 @@ fun ProduitItem(produit: Produit, onModifierClick: (Produit) -> Unit) {
 fun ProduitFormDialog(
     produit: Produit?,
     onDismiss: () -> Unit,
-    onConfirm: (nom: String, prix: Long, stock: Int) -> Unit
+    onConfirm: (nom: String, prixAchatTxt: String, prixVenteTxt: String, stockTxt: String, seuilTxt: String) -> Unit
 ) {
     var nom by remember { mutableStateOf(produit?.nom ?: "") }
-    var prix by remember { mutableStateOf(produit?.prix?.toString() ?: "") }
+    var prixAchat by remember { mutableStateOf(produit?.prixAchat?.toString() ?: "") }
+    var prixVente by remember { mutableStateOf(produit?.prixVente?.toString() ?: "") }
     var stock by remember { mutableStateOf(produit?.stock?.toString() ?: "") }
+    var seuil by remember { mutableStateOf(produit?.seuilAlerte?.toString() ?: "") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(20.dp),
         title = { Text(if (produit == null) "Ajouter un produit" else "Modifier le produit") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = nom,
-                    onValueChange = { nom = it },
-                    label = { Text("Nom du produit") },
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = prix,
-                    onValueChange = { prix = it },
-                    label = { Text("Prix unitaire (GNF)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = stock,
-                    onValueChange = { stock = it },
-                    label = { Text("Quantité en stock") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
-                )
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(value = nom, onValueChange = { nom = it }, label = { Text("Nom du produit") }, singleLine = true, shape = RoundedCornerShape(12.dp))
+                OutlinedTextField(value = prixAchat, onValueChange = { prixAchat = it }, label = { Text("Prix d'achat (GNF)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, shape = RoundedCornerShape(12.dp))
+                OutlinedTextField(value = prixVente, onValueChange = { prixVente = it }, label = { Text("Prix de vente (GNF)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, shape = RoundedCornerShape(12.dp))
+                OutlinedTextField(value = stock, onValueChange = { stock = it }, label = { Text("Quantité en stock") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, shape = RoundedCornerShape(12.dp))
+                OutlinedTextField(value = seuil, onValueChange = { seuil = it }, label = { Text("Seuil d'alerte") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, shape = RoundedCornerShape(12.dp))
             }
         },
         confirmButton = {
-            Button(
-                onClick = {
-                    val prixParsed = prix.toLongOrNull() ?: 0L
-                    val stockParsed = stock.toIntOrNull() ?: 0
-                    if (nom.isNotBlank()) onConfirm(nom, prixParsed, stockParsed)
-                }
-            ) {
+            Button(onClick = { if (nom.isNotBlank()) onConfirm(nom, prixAchat, prixVente, stock, seuil) }, shape = RoundedCornerShape(12.dp)) {
                 Text("Enregistrer")
             }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Annuler") }
-        }
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } }
     )
 }
