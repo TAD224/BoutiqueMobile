@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Boutique Mobile</string>
+    <string name="nav_dashboard">Accueil</string>
+    <string name="nav_produits">Produits</string>
+    <string name="nav_nouvelle_vente">Vente</string>
+    <string name="nav_clients_dettes">Clients</string>
+    <string name="ecran_a_venir">Écran à venir</string>
+</resources>
