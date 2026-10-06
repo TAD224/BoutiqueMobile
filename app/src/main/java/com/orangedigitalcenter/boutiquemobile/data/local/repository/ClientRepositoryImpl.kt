@@ -21,14 +21,6 @@ class ClientRepositoryImpl(
 
     override fun getAllClients(): Flow<List<Client>> = clientDao.getAll()
 
-    override fun getClientById(id: Long): Flow<Client?> = clientDao.getById(id)
-
-    /**
-     * Pour chaque client : soldeDu = (somme des total - montantPaye de ses ventes)
-     *                                - (somme de ses encaissements).
-     * Le Flow se met à jour automatiquement quand une vente, un encaissement
-     * ou un client change.
-     */
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun getClientsAvecDette(): Flow<List<ClientAvecDette>> =
         clientDao.getAll().flatMapLatest { clients ->
@@ -41,10 +33,8 @@ class ClientRepositoryImpl(
                         encaissementDao.getTotalEncaisseParClient(client.id)
                     ) { dueParVentes, totalEncaisse ->
                         ClientAvecDette(
-                            clientId = client.id,
-                            nom = client.nom,
-                            telephone = client.telephone,
-                            soldeDu = dueParVentes - totalEncaisse
+                            client = client,
+                            soldeDu = (dueParVentes - totalEncaisse).coerceAtLeast(0)
                         )
                     }
                 }
