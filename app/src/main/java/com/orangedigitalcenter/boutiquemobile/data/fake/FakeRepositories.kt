@@ -1,4 +1,5 @@
 package com.orangedigitalcenter.boutiquemobile.data.fake
+
 import com.orangedigitalcenter.boutiquemobile.data.local.entity.*
 import com.orangedigitalcenter.boutiquemobile.domain.model.*
 import com.orangedigitalcenter.boutiquemobile.domain.repository.*
@@ -19,6 +20,12 @@ class FakeProduitRepository : ProduitRepository {
     }
     override suspend fun modifierProduit(produit: Produit) { data.value = data.value.map { if (it.id == produit.id) produit else it } }
     fun decrementer(id: Long, q: Int) { data.value = data.value.map { if (it.id == id) it.copy(stock = it.stock - q) else it } }
+    override fun getProduitById(id: Long): Flow<Produit?> =
+        data.map { liste -> liste.find { it.id == id } }
+
+    override suspend fun supprimerProduit(produit: Produit) {
+        data.value = data.value.filter { it.id != produit.id }
+    }
 }
 
 class FakeClientRepository(private val ventes: FakeVenteRepository? = null) : ClientRepository {

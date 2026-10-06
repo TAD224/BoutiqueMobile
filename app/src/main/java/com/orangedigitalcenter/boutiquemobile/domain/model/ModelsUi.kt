@@ -1,24 +1,26 @@
 package com.orangedigitalcenter.boutiquemobile.domain.model
 
+import com.orangedigitalcenter.boutiquemobile.data.local.entity.Client
 import com.orangedigitalcenter.boutiquemobile.data.local.entity.ModePaiement
+import com.orangedigitalcenter.boutiquemobile.data.local.entity.Produit
 
-/**
- * Ligne d'un panier en cours de saisie, avant d'être transformée en LigneVente
- * lors de l'enregistrement. C'est ce type que manipule l'écran "Nouvelle vente".
- */
 data class LigneVentePanier(
-    val produitId: Long,
-    val nomProduit: String,
+    val produit: Produit,
     val quantite: Int,
-    val prixUnitaire: Long
-) {
-    val sousTotal: Long get() = quantite * prixUnitaire
-}
+    val sousTotal: Long
+)
 
-/**
- * Détail complet d'une vente (vente + lignes + nom du client) prêt à afficher.
- * Évite à l'UI d'avoir à recombiner plusieurs entités elle-même.
- */
+data class ClientAvecDette(
+    val client: Client,
+    val soldeDu: Long
+)
+
+data class ProduitPlusVendu(
+    val nom: String,
+    val quantiteVendue: Int
+)
+
+/** Conservé pour un futur écran de détail de vente ; plus utilisé par VenteRepository pour l'instant. */
 data class VenteDetail(
     val venteId: Long,
     val date: Long,
@@ -30,13 +32,3 @@ data class VenteDetail(
 ) {
     val dette: Long get() = total - montantPaye
 }
-
-/**
- * Client avec sa dette déjà calculée, pour l'écran "Clients et dettes".
- */
-data class ClientAvecDette(
-    val clientId: Long,
-    val nom: String,
-    val telephone: String?,
-    val soldeDu: Long
-)

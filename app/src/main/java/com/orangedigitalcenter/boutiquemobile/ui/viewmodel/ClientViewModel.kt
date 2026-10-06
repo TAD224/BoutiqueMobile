@@ -1,8 +1,12 @@
- package com.orangedigitalcenter.boutiquemobile.ui.viewmodel
+package com.orangedigitalcenter.boutiquemobile.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.orangedigitalcenter.boutiquemobile.data.local.entity.*
+import com.orangedigitalcenter.boutiquemobile.domain.model.*
+import com.orangedigitalcenter.boutiquemobile.domain.repository.*
 import com.orangedigitalcenter.boutiquemobile.domain.usecase.ValidationRules
+import com.orangedigitalcenter.boutiquemobile.ui.state.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -23,7 +27,6 @@ class ClientViewModel(
         val montant = montantTexte.trim().toLongOrNull()
         val erreur = ValidationRules.validerEncaissement(montant, client.soldeDu)
         if (erreur != null) { etat.update { it.copy(erreur = erreur, encaissementEnregistre = false) }; return }
-
         viewModelScope.launch {
             try {
                 repo.enregistrerEncaissement(Encaissement(0, client.client.id, montant!!, horloge()))
