@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.Query
 import com.orangedigitalcenter.boutiquemobile.data.local.entity.LigneVente
 import com.orangedigitalcenter.boutiquemobile.data.local.entity.Vente
+import com.orangedigitalcenter.boutiquemobile.domain.model.ProduitPlusVendu
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -28,12 +29,9 @@ interface VenteDao {
     @Insert
     suspend fun insertLignes(lignes: List<LigneVente>)
 
-    // Dette d'un client = somme des (total - montantPaye) sur toutes ses ventes
     @Query("SELECT COALESCE(SUM(total - montantPaye), 0) FROM ventes WHERE clientId = :clientId")
     fun getSoldeDuParVentes(clientId: Long): Flow<Long>
 
-    // Bénéfice = somme de (prixUnitaire - prixAchat) * quantité sur les ventes de la période.
-    // Note : prixAchat est celui du produit au moment du calcul (pas d'historique du prix d'achat).
     @Query(
         """
         SELECT COALESCE(SUM((l.prixUnitaire - p.prixAchat) * l.quantite), 0)
@@ -55,11 +53,5 @@ interface VenteDao {
         LIMIT :limite
         """
     )
-    fun getProduitsLesPlusVendus(limite: Int): Flow<List<ProduitVendu>>
+    fun getProduitsLesPlusVendus(limite: Int): Flow<List<ProduitPlusVendu>>
 }
-
-/** Résultat de la requête "produits les plus vendus" (pas une entité Room). */
-data class ProduitVendu(
-    val nom: String,
-    val quantiteVendue: Int
-)
