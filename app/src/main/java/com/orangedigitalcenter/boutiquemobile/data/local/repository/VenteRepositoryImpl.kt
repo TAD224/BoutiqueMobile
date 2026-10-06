@@ -1,4 +1,4 @@
-package com.orangedigitalcenter.boutiquemobile.data.repository
+package com.orangedigitalcenter.boutiquemobile.data.local.repository
 
 import androidx.room.withTransaction
 import com.orangedigitalcenter.boutiquemobile.data.local.AppDatabase

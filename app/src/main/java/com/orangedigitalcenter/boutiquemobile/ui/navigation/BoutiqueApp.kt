@@ -14,16 +14,32 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.orangedigitalcenter.boutiquemobile.BoutiqueApplication
 import com.orangedigitalcenter.boutiquemobile.R
-import com.orangedigitalcenter.boutiquemobile.ui.screens.EcranTemporaire
+import com.orangedigitalcenter.boutiquemobile.data.local.repository.ClientRepositoryImpl
+import com.orangedigitalcenter.boutiquemobile.data.local.repository.ProduitRepositoryImpl
+import com.orangedigitalcenter.boutiquemobile.data.local.repository.VenteRepositoryImpl
+import com.orangedigitalcenter.boutiquemobile.ui.screens.EcranClientsDettes
+import com.orangedigitalcenter.boutiquemobile.ui.screens.EcranDashboard
+import com.orangedigitalcenter.boutiquemobile.ui.screens.EcranNouvelleVente
+import com.orangedigitalcenter.boutiquemobile.ui.screens.EcranProduitsStock
+import com.orangedigitalcenter.boutiquemobile.ui.viewmodel.BoutiqueViewModelFactory
+import com.orangedigitalcenter.boutiquemobile.ui.viewmodel.ClientViewModel
+import com.orangedigitalcenter.boutiquemobile.ui.viewmodel.DashboardViewModel
+import com.orangedigitalcenter.boutiquemobile.ui.viewmodel.ProduitViewModel
+import com.orangedigitalcenter.boutiquemobile.ui.viewmodel.VenteViewModel
 
 object Routes {
     const val DASHBOARD = "dashboard"
@@ -46,14 +62,22 @@ private val destinations = listOf(
 )
 
 /**
- * Squelette de navigation (barre du bas + 4 écrans).
- * Propriétaire : Responsable interface, qui remplace les EcranTemporaire.
+ * Squelette de navigation (barre du bas + 4 écrans), branché sur la vraie base Room
+ * via BoutiqueApplication.database, offline-first.
  */
 @Composable
 fun BoutiqueApp() {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
+
+    val app = LocalContext.current.applicationContext as BoutiqueApplication
+    val database = app.database
+
+    val produitRepo = remember { ProduitRepositoryImpl(database.produitDao()) }
+    val clientRepo = remember { ClientRepositoryImpl(database.clientDao(), database.venteDao(), database.encaissementDao()) }
+    val venteRepo = remember { VenteRepositoryImpl(database) }
+    val factory = remember { BoutiqueViewModelFactory(produitRepo, clientRepo, venteRepo) }
 
     Scaffold(
         bottomBar = {
@@ -82,10 +106,46 @@ fun BoutiqueApp() {
             startDestination = Routes.DASHBOARD,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(Routes.DASHBOARD) { EcranTemporaire(R.string.nav_dashboard) }
-            composable(Routes.PRODUITS) { EcranTemporaire(R.string.nav_produits) }
-            composable(Routes.NOUVELLE_VENTE) { EcranTemporaire(R.string.nav_nouvelle_vente) }
-            composable(Routes.CLIENTS_DETTES) { EcranTemporaire(R.string.nav_clients_dettes) }
+            composable(Routes.DASHBOARD) {
+                val viewModel: DashboardViewModel = viewModel(factory = factory)
+                val state by viewModel.uiState.collectAsStateWithLifecycle()
+                EcranDashboard(state = state)
+            }
+            composable(Routes.PRODUITS) {
+                val viewModel: ProduitViewModel = viewModel(factory = factory)
+                val state by viewModel.uiState.collectAsStateWithLifecycle()
+                EcranProduitsStock(
+                    state = state,
+                    onRechercheChange = viewModel::onRechercheChange,
+                    onEnregistrerProduit = viewModel::sauvegarderProduit,
+                    onResetEnregistrement = viewModel::effacerMessages
+                )
+            }
+            composable(Routes.NOUVELLE_VENTE) {
+                val viewModel: VenteViewModel = viewModel(factory = factory)
+                val state by viewModel.uiState.collectAsStateWithLifecycle()
+                EcranNouvelleVente(
+                    state = state,
+                    onAjouterProduit = viewModel::ajouterProduit,
+                    onChangerQuantite = viewModel::changerQuantite,
+                    onRetirerProduit = viewModel::retirerProduit,
+                    onSelectionnerClient = viewModel::selectionnerClient,
+                    onChoisirModePaiement = viewModel::choisirModePaiement,
+                    onMontantPayeChange = viewModel::onMontantPayeChange,
+                    onValiderVente = viewModel::validerVente,
+                    onVenteAcquittee = viewModel::venteAcquittee
+                )
+            }
+            composable(Routes.CLIENTS_DETTES) {
+                val viewModel: ClientViewModel = viewModel(factory = factory)
+                val state by viewModel.uiState.collectAsStateWithLifecycle()
+                EcranClientsDettes(
+                    state = state,
+                    onAjouterClient = viewModel::ajouterClient,
+                    onEncaisserPaiement = viewModel::encaisser,
+                    onResetEncaissement = viewModel::effacerMessages
+                )
+            }
         }
     }
 }

@@ -1,4 +1,4 @@
-package com.orangedigitalcenter.boutiquemobile.data.repository
+package com.orangedigitalcenter.boutiquemobile.data.local.repository
 
 import com.orangedigitalcenter.boutiquemobile.data.local.dao.ProduitDao
 import com.orangedigitalcenter.boutiquemobile.data.local.entity.Produit
