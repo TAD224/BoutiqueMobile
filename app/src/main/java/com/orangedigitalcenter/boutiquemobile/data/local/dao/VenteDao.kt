@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.Query
 import com.orangedigitalcenter.boutiquemobile.data.local.entity.LigneVente
 import com.orangedigitalcenter.boutiquemobile.data.local.entity.Vente
+import com.orangedigitalcenter.boutiquemobile.domain.model.ProduitPlusVendu
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -28,7 +29,29 @@ interface VenteDao {
     @Insert
     suspend fun insertLignes(lignes: List<LigneVente>)
 
-    // Dette d'un client = somme des (total - montantPaye) sur toutes ses ventes
     @Query("SELECT COALESCE(SUM(total - montantPaye), 0) FROM ventes WHERE clientId = :clientId")
     fun getSoldeDuParVentes(clientId: Long): Flow<Long>
+
+    @Query(
+        """
+        SELECT COALESCE(SUM((l.prixUnitaire - p.prixAchat) * l.quantite), 0)
+        FROM lignes_vente l
+        INNER JOIN ventes v ON v.id = l.venteId
+        INNER JOIN produits p ON p.id = l.produitId
+        WHERE v.date BETWEEN :debut AND :fin
+        """
+    )
+    fun getBeneficeEntre(debut: Long, fin: Long): Flow<Long>
+
+    @Query(
+        """
+        SELECT p.nom AS nom, SUM(l.quantite) AS quantiteVendue
+        FROM lignes_vente l
+        INNER JOIN produits p ON p.id = l.produitId
+        GROUP BY p.id
+        ORDER BY quantiteVendue DESC
+        LIMIT :limite
+        """
+    )
+    fun getProduitsLesPlusVendus(limite: Int): Flow<List<ProduitPlusVendu>>
 }
