@@ -1,11 +1,11 @@
 package com.orangedigitalcenter.boutiquemobile.ui.screens
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -35,39 +35,44 @@ fun EcranNouvelleVente(
     onVenteAcquittee: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Nouvelle vente", style = MaterialTheme.typography.titleLarge) },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.background)
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.background,
-        modifier = modifier
-    ) { paddingValues ->
+    Scaffold(containerColor = MaterialTheme.colorScheme.background, modifier = modifier) { paddingValues ->
+        // Écran entièrement scrollable + imePadding : corrige le champ caché par le clavier.
         Column(
-            modifier = Modifier.fillMaxSize().padding(paddingValues).padding(horizontal = 16.dp).padding(bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
+                .imePadding()
+                .padding(horizontal = Spacing.screenPadding)
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sectionGap)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            ScreenHeader("Nouvelle vente", modifier = Modifier.padding(horizontal = 0.dp))
+
+            Column {
                 SectionLabel("Produits disponibles")
                 if (state.produitsDisponibles.isEmpty()) {
                     EtatVide("Aucune donnée pour le moment", Icons.Filled.Inventory2)
                 } else {
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        items(state.produitsDisponibles, key = { it.id }) { produit ->
+                    // Row scrollable simple (pas de Lazy imbriqué) : plus robuste.
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        state.produitsDisponibles.forEach { produit ->
                             ProduitChip(produit, onClick = { onAjouterProduit(produit) })
                         }
                     }
                 }
+            }
 
-                Spacer(Modifier.height(18.dp))
+            Column {
                 SectionLabel("Panier")
                 if (state.panier.isEmpty()) {
                     EtatVide("Touchez un produit ci-dessus pour l'ajouter", Icons.Filled.ShoppingCart)
                 } else {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(state.panier, key = { it.produit.id }) { ligne ->
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        state.panier.forEach { ligne ->
                             LignePanierItem(
                                 ligne = ligne,
                                 onIncrementer = { onChangerQuantite(ligne.produit.id, ligne.quantite + 1) },
@@ -79,9 +84,9 @@ fun EcranNouvelleVente(
                 }
             }
 
-            Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+            AppCard(containerColor = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.fillMaxWidth()) {
                 Row(
-                    modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                    modifier = Modifier.padding(18.dp).fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -90,31 +95,39 @@ fun EcranNouvelleVente(
                 }
             }
 
-            ClientSelector(clients = state.clients, clientSelectionne = state.clientSelectionne, onSelectionnerClient = onSelectionnerClient)
-
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                SegmentedButton(
-                    selected = state.modePaiement == ModePaiement.ESPECES,
-                    onClick = { onChoisirModePaiement(ModePaiement.ESPECES) },
-                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-                ) { Text("Espèces") }
-                SegmentedButton(
-                    selected = state.modePaiement == ModePaiement.MOBILE_MONEY,
-                    onClick = { onChoisirModePaiement(ModePaiement.MOBILE_MONEY) },
-                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
-                ) { Text("Mobile Money") }
+            Column {
+                SectionLabel("Client")
+                ClientSelector(clients = state.clients, clientSelectionne = state.clientSelectionne, onSelectionnerClient = onSelectionnerClient)
             }
 
-            OutlinedTextField(
-                value = state.montantPayeTexte,
-                onValueChange = onMontantPayeChange,
-                label = { Text("Montant payé (GNF)") },
-                placeholder = { Text("Vide = comptant de ${formatGnf(state.total)}") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            )
+            Column {
+                SectionLabel("Paiement")
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    SegmentedButton(
+                        selected = state.modePaiement == ModePaiement.ESPECES,
+                        onClick = { onChoisirModePaiement(ModePaiement.ESPECES) },
+                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                    ) { Text("Espèces") }
+                    SegmentedButton(
+                        selected = state.modePaiement == ModePaiement.MOBILE_MONEY,
+                        onClick = { onChoisirModePaiement(ModePaiement.MOBILE_MONEY) },
+                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                    ) { Text("Mobile Money") }
+                }
+
+                Spacer(Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = state.montantPayeTexte,
+                    onValueChange = onMontantPayeChange,
+                    label = { Text("Montant payé (GNF)") },
+                    placeholder = { Text("Vide = comptant de ${formatGnf(state.total)}") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
             state.erreur?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
@@ -124,15 +137,15 @@ fun EcranNouvelleVente(
                 onClick = onValiderVente,
                 enabled = state.panier.isNotEmpty(),
                 shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth().height(50.dp)
-            ) { Text("Enregistrer la vente") }
+                modifier = Modifier.fillMaxWidth().height(52.dp)
+            ) { Text("Enregistrer la vente", style = MaterialTheme.typography.titleMedium) }
         }
     }
 
     if (state.venteEnregistree) {
         AlertDialog(
             onDismissRequest = onVenteAcquittee,
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(22.dp),
             icon = { Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary) },
             title = { Text("Vente enregistrée") },
             text = { Text("La vente a bien été enregistrée.") },
@@ -143,8 +156,8 @@ fun EcranNouvelleVente(
 
 @Composable
 private fun ProduitChip(produit: Produit, onClick: () -> Unit) {
-    Surface(onClick = onClick, shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 1.dp, modifier = Modifier.width(140.dp)) {
-        Column(modifier = Modifier.padding(12.dp)) {
+    AppCard(modifier = Modifier.width(150.dp), onClick = onClick) {
+        Column(modifier = Modifier.padding(14.dp)) {
             Text(produit.nom, style = MaterialTheme.typography.titleMedium, maxLines = 2)
             Spacer(Modifier.height(4.dp))
             Text(formatGnf(produit.prixVente), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
@@ -155,14 +168,14 @@ private fun ProduitChip(produit: Produit, onClick: () -> Unit) {
 
 @Composable
 private fun LignePanierItem(ligne: LigneVentePanier, onIncrementer: () -> Unit, onDecrementer: () -> Unit, onSupprimer: () -> Unit) {
-    Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 1.dp, modifier = Modifier.fillMaxWidth()) {
-        Row(modifier = Modifier.padding(10.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.padding(12.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(ligne.produit.nom, style = MaterialTheme.typography.titleMedium)
                 Text(formatGnf(ligne.sousTotal), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             IconButton(onClick = onDecrementer, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.RemoveCircle, contentDescription = "Diminuer") }
-            Text("${ligne.quantite}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 4.dp))
+            Text("${ligne.quantite}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 6.dp))
             IconButton(onClick = onIncrementer, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.AddCircle, contentDescription = "Augmenter") }
             IconButton(onClick = onSupprimer, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.Delete, contentDescription = "Retirer", tint = MaterialTheme.colorScheme.error) }
         }
@@ -178,7 +191,6 @@ private fun ClientSelector(clients: List<Client>, clientSelectionne: Client?, on
             value = clientSelectionne?.nom ?: "Comptant (sans client)",
             onValueChange = {},
             readOnly = true,
-            label = { Text("Client") },
             leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             shape = RoundedCornerShape(12.dp),

@@ -37,13 +37,9 @@ fun EcranClientsDettes(
         }
     }
 
+    val totalDette = state.clients.sumOf { it.soldeDu }
+
     Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Clients & dettes", style = MaterialTheme.typography.titleLarge) },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.background)
-            )
-        },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog = true }, shape = CircleShape) {
                 Icon(Icons.Default.Add, contentDescription = "Ajouter un client")
@@ -52,23 +48,48 @@ fun EcranClientsDettes(
         containerColor = MaterialTheme.colorScheme.background,
         modifier = modifier
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(paddingValues),
+            verticalArrangement = Arrangement.spacedBy(Spacing.itemGap),
+            contentPadding = PaddingValues(bottom = 100.dp)
+        ) {
+            item { ScreenHeader("Clients & dettes", "${state.clients.size} client(s)") }
+
+            if (totalDette > 0) {
+                item {
+                    AppCard(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.screenPadding)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Total des dettes", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onErrorContainer)
+                            Text(formatGnf(totalDette), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onErrorContainer)
+                        }
+                    }
+                }
+            }
+
             if (state.chargement) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                item { CircularProgressIndicator(modifier = Modifier.padding(horizontal = Spacing.screenPadding)) }
             } else if (state.clients.isEmpty()) {
-                EtatVide("Aucune donnée pour le moment", Icons.Filled.People, modifier = Modifier.align(Alignment.Center))
+                item {
+                    Box(modifier = Modifier.padding(horizontal = Spacing.screenPadding)) {
+                        EtatVide("Aucune donnée pour le moment", Icons.Filled.People)
+                    }
+                }
             } else {
-                LazyColumn(
-                    contentPadding = PaddingValues(16.dp, 16.dp, 16.dp, 90.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(state.clients, key = { it.client.id }) { clientDette ->
+                items(state.clients, key = { it.client.id }) { clientDette ->
+                    Box(modifier = Modifier.padding(horizontal = Spacing.screenPadding)) {
                         ClientItem(clientAvecDette = clientDette, onEncaissementClick = { clientPourEncaissement = it })
                     }
                 }
             }
-            state.erreur?.let {
-                Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp))
+            state.erreur?.let { erreur ->
+                item { Text(erreur, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = Spacing.screenPadding)) }
             }
         }
         if (showAddDialog) {
@@ -87,15 +108,15 @@ fun EcranClientsDettes(
 @Composable
 fun ClientItem(clientAvecDette: ClientAvecDette, onEncaissementClick: (ClientAvecDette) -> Unit) {
     val aDette = clientAvecDette.soldeDu > 0
-    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 1.dp, modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Row(
-            modifier = Modifier.padding(14.dp).fillMaxWidth(),
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                 Avatar(initiale = clientAvecDette.client.nom.take(1))
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(14.dp))
                 Column {
                     Text(clientAvecDette.client.nom, style = MaterialTheme.typography.titleMedium)
                     Text(clientAvecDette.client.telephone ?: "Pas de téléphone", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -124,7 +145,7 @@ fun AjoutClientDialog(onDismiss: () -> Unit, onConfirm: (nom: String, telephone:
     var telephone by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(22.dp),
         title = { Text("Nouveau client") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -142,7 +163,7 @@ fun EncaissementDialog(clientAvecDette: ClientAvecDette, onDismiss: () -> Unit, 
     var montantSaisi by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(22.dp),
         title = { Text("Encaissement · ${clientAvecDette.client.nom}") },
         text = {
             Column {

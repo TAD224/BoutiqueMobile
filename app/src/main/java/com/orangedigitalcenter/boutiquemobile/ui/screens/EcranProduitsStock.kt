@@ -1,6 +1,5 @@
 package com.orangedigitalcenter.boutiquemobile.ui.screens
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -39,12 +38,6 @@ fun EcranProduitsStock(
     }
 
     Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Produits", style = MaterialTheme.typography.titleLarge) },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.background)
-            )
-        },
         floatingActionButton = {
             FloatingActionButton(onClick = { produitEdition = null; showDialog = true }, shape = CircleShape) {
                 Icon(Icons.Default.Add, contentDescription = "Nouveau produit")
@@ -53,32 +46,44 @@ fun EcranProduitsStock(
         containerColor = MaterialTheme.colorScheme.background,
         modifier = modifier
     ) { paddingValues ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(paddingValues).padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(paddingValues),
+            verticalArrangement = Arrangement.spacedBy(Spacing.itemGap),
+            contentPadding = PaddingValues(bottom = 100.dp)
         ) {
-            OutlinedTextField(
-                value = state.recherche,
-                onValueChange = onRechercheChange,
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Rechercher un produit...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                shape = RoundedCornerShape(14.dp),
-                singleLine = true
-            )
+            item {
+                ScreenHeader("Produits", "${state.produits.size} produit(s) en catalogue")
+            }
+            item {
+                OutlinedTextField(
+                    value = state.recherche,
+                    onValueChange = onRechercheChange,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.screenPadding),
+                    placeholder = { Text("Rechercher un produit...") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    shape = RoundedCornerShape(14.dp),
+                    singleLine = true
+                )
+            }
             if (state.chargement) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                item { CircularProgressIndicator(modifier = Modifier.padding(horizontal = Spacing.screenPadding)) }
             } else if (state.produits.isEmpty()) {
-                EtatVide("Aucune donnée pour le moment", Icons.Filled.Inventory2)
+                item {
+                    Box(modifier = Modifier.padding(horizontal = Spacing.screenPadding)) {
+                        EtatVide("Aucune donnée pour le moment", Icons.Filled.Inventory2)
+                    }
+                }
             } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 90.dp)) {
-                    items(state.produits, key = { it.id }) { produit ->
+                items(state.produits, key = { it.id }) { produit ->
+                    Box(modifier = Modifier.padding(horizontal = Spacing.screenPadding)) {
                         ProduitItem(produit = produit, onModifierClick = { produitEdition = it; showDialog = true })
                     }
                 }
             }
-            state.erreur?.let {
-                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+            state.erreur?.let { erreur ->
+                item {
+                    Text(erreur, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = Spacing.screenPadding))
+                }
             }
         }
         if (showDialog) {
@@ -96,20 +101,15 @@ fun EcranProduitsStock(
 @Composable
 fun ProduitItem(produit: Produit, onModifierClick: (Produit) -> Unit) {
     val stockBas = produit.stock <= produit.seuilAlerte
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
-        modifier = Modifier.fillMaxWidth().clickable { onModifierClick(produit) }
-    ) {
+    AppCard(modifier = Modifier.fillMaxWidth(), onClick = { onModifierClick(produit) }) {
         Row(
-            modifier = Modifier.padding(14.dp).fillMaxWidth(),
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                 Avatar(initiale = produit.nom.take(1))
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(14.dp))
                 Column {
                     Text(produit.nom, style = MaterialTheme.typography.titleMedium)
                     Text(formatGnf(produit.prixVente), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -144,7 +144,7 @@ fun ProduitFormDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(22.dp),
         title = { Text(if (produit == null) "Ajouter un produit" else "Modifier le produit") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -156,9 +156,7 @@ fun ProduitFormDialog(
             }
         },
         confirmButton = {
-            Button(onClick = { if (nom.isNotBlank()) onConfirm(nom, prixAchat, prixVente, stock, seuil) }, shape = RoundedCornerShape(12.dp)) {
-                Text("Enregistrer")
-            }
+            Button(onClick = { if (nom.isNotBlank()) onConfirm(nom, prixAchat, prixVente, stock, seuil) }, shape = RoundedCornerShape(12.dp)) { Text("Enregistrer") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } }
     )
